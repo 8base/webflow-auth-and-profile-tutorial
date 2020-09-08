@@ -1,90 +1,110 @@
-// Required CDN https://cdn.jsdelivr.net/npm/graphql-request@3.0.0/dist/index.min.js
-
-;(function () {
-  /* Get the forgot password form element by its ID */
-  var form = $('#sign-up-form')
-
-  /* Signup User with Password Mutation GraphQL Mutation */
-  var signUpQuery = `
-    mutation(
-      $authProfileId: ID!
-      $password: String!
-      $firstName: String
-      $lastName: String
-      $email: String!
-
-    ) {
-      userSignUpWithPassword(
-        authProfileId: $authProfileId,
-        password: $password
-        user: {
-          firstName: $firstName
-          lastName: $lastName
-          email: $email
+;(() => {
+  new Vue({
+    el: '#sign-up-form',
+    data: {
+      errors: [],
+      form: {
+        email: '',
+        password: '',
+        lastName: '',
+        firstName: '',
+        authProfileId: EightBase.config.authProfileId
+      },
+      signInMutation: `
+        mutation(
+          $email: String!,
+          $password: String!,
+          $authProfileId: ID!
+        ) {
+          userLogin(data: {
+            email: $email,
+            password: $password,
+            authProfileId: $authProfileId
+          }) {
+            success
+            auth {
+              idToken
+              refreshToken
+            }
+          }
         }
-      ) {
-        id
-        createdAt
-      }
-    }
-  `
+      `,
+      signUpMutation: `
+        mutation(
+          $authProfileId: ID!
+          $password: String!
+          $firstName: String
+          $lastName: String
+          $email: String!
 
-  var signInQuery = `
-    mutation(
-      $email: String!,
-      $password: String!,
-      $authProfileId: ID!
-    ) {
-      userLogin(data: {
-        email: $email,
-        password: $password,
-        authProfileId: $authProfileId
-      }) {
-        success
-        auth {
-          idToken
-          refreshToken
+        ) {
+          userSignUpWithPassword(
+            authProfileId: $authProfileId,
+            password: $password
+            user: {
+              firstName: $firstName
+              lastName: $lastName
+              email: $email
+            }
+          ) {
+            id
+            createdAt
+          }
         }
+      `
+    },
+    methods: {
+      handleError (error) {
+        console.log(error)
+      },
+
+      login (result) {
+        if (result.errors.length) {
+          this.errors = result.errors
+          return
+        }
+
+        /* Submit request to API */
+        EightBase.api.request({
+          data: JSON.stringify({
+            query: this.signInMutation,
+            variables: this.form
+          }),
+          success: result => {
+            EightBase.store.set('auth', result.data.userLogin.auth)
+            window.location.replace(EightBase.config.routes.loginRedirect)
+          },
+          error: this.error,
+          /* Skips auth */
+          beforeSend: null
+        })
+      },
+
+      signUp (event) {
+        if (event) event.preventDefault()
+        if (event) event.stopPropagation()
+
+        console.log('Logging in user...')
+
+        /* Submit request to API */
+        EightBase.api.request({
+          data: JSON.stringify({
+            query: this.signUpMutation,
+            variables: this.form
+          }),
+          success: this.login,
+          error: this.handleError,
+          /* Skips auth */
+          beforeSend: null
+        })
+
+        return false
+      }
+    },
+    watch: {
+      errors (errors) {
+        errors.forEach(console.log)
       }
     }
-  `
-
-  /* Login user after signup */
-  function loginUser (email, password) {
-    var variables = {
-      authProfileId: EightBase.config.authProfileId,
-      password,
-      email
-    }
-    /* Submit request to API */
-    EightBase.api.request({
-      data: JSON.stringify({ query: signInQuery, variables }),
-      beforeSend: null /* Skips auth */,
-      success: function (result) {
-        debugger
-      }
-    })
-  }
-
-  /* Write submit handler function */
-  function handleSubmit (event) {
-    /* Get all form fields in one javascript object */
-    var variables = EightBase.forms.getData(this)
-
-    /* Add auth profile ID */
-    variables.authProfileId = EightBase.config.authProfileId
-
-    /* Submit request to API */
-    EightBase.api.request({
-      data: JSON.stringify({ query: signUpQuery, variables }),
-      beforeSend: null /* Skips auth */,
-      success: function () {
-        loginUser(variables.email, variables.password)
-      }
-    })
-
-    return false
-  }
-
-  form.submit(handleSubmit)
+  })
 })()

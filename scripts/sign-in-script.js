@@ -1,15 +1,29 @@
-;(function () {
+;(() => {
   new Vue({
-    el: '#forgot-password-form',
+    el: '#sign-in-form',
     data: {
       errors: [],
       form: {
-        email: ''
+        email: '',
+        password: '',
+        authProfileId: EightBase.config.authProfileId
       },
       query: `
-        mutation($email: String!) {
-          userForgotPassword(email: $email) {
+        mutation(
+          $email: String!,
+          $password: String!,
+          $authProfileId: ID!
+        ) {
+          userLogin(data: {
+            email: $email,
+            password: $password,
+            authProfileId: $authProfileId
+          }) {
             success
+            auth {
+              idToken
+              refreshToken
+            }
           }
         }
       `
@@ -25,10 +39,11 @@
           return
         }
 
-        window.location.replace(EightBase.config.routes.logoutRedirect)
+        EightBase.store.set('auth', result.data.userLogin.auth)
+        window.location.replace(EightBase.config.routes.loginRedirect)
       },
 
-      handleSubmit (event) {
+      login (event) {
         if (event) event.preventDefault()
         if (event) event.stopPropagation()
 

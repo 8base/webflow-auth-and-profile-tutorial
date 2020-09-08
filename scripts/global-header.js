@@ -1,53 +1,59 @@
 /* Accessible globally on webflow site */
-window.EightBase = (function (config) {
+window.EightBase = (config => {
   /* Helper object for handling local storage */
   var store = {
     /* Access value in localStorage */
-    get: function (key) {
-      return localStorage.getItem(key)
+    get: key => {
+      return JSON.parse(localStorage.getItem(key))
     },
+
     /* Set value in localStorage */
-    set: function (key, value) {
-      localStorage.setItem(key, value)
+    set: (key, value) => {
+      localStorage.setItem(key, JSON.stringify(value))
 
       return value
     },
+
     /* Remove Item from localStorage */
-    remove: function (key) {
+    remove: key => {
       localStorage.removeItem(key)
     },
+
     /* Clear values from localStorage */
-    clear: function () {
+    clear: () => {
       localStorage.clear()
+    },
+
+    /* Helper for determining if user is authenticated */
+    isAuthenticated: () => {
+      let auth = JSON.parse(localStorage.getItem('auth'))
+
+      return Boolean(auth) && Boolean(auth.idToken)
     }
   }
 
-  /* Helpers when handling forms */
-  var forms = {
-    getData: function (form) {
-      return $(form)
-        .serializeArray()
-        .reduce(function (obj, input) {
-          obj[input.name] = input.value
-          return obj
-        }, {})
-    }
+  /* Guard protected routes */
+  let isProtectedRoute = config.routes.private.some(p =>
+    window.location.pathname.match(p)
+  )
+
+  if (isProtectedRoute && !store.isAuthenticated()) {
+    window.location.replace(config.routes.logoutRedirect)
   }
 
   /* Configure Ajax */
   var api = {
-    request: function (opts = {}) {
+    request: (opts = {}) => {
       return $.ajax(
         Object.assign(
           {
             type: 'POST',
             url: config.endpoint,
             contentType: 'application/json',
-            beforeSend: function (xhr) {
-              xhr.setRequestHeader(
-                'Authorization',
-                'Bearer ' + store.get('idToken')
-              )
+            beforeSend: xhr => {
+              var { idToken } = store.get('auth')
+
+              xhr.setRequestHeader('Authorization', 'Bearer ' + idToken)
             }
           },
           opts
@@ -59,11 +65,15 @@ window.EightBase = (function (config) {
   return {
     config,
     store,
-    forms,
     api
   }
 })({
   /* Set the 8base API Endpoint */
   endpoint: 'https://api.8base.com/ckcp42med00ru07mf66mnfbk3',
-  authProfileId: 'ckekgvcff00b407l78ey83t32'
+  authProfileId: 'ckekgvcff00b407l78ey83t32',
+  routes: {
+    loginRedirect: '/profile',
+    logoutRedirect: '/sign-in',
+    private: ['/profile']
+  }
 })
