@@ -1,14 +1,20 @@
 ;(function () {
   new Vue({
+    // Component mounts on the element with the ID sign-in-form
     el: '#forgot-password-form',
     data: {
       errors: [],
       form: {
-        email: ''
+        email: '',
+        authProfileId: EightBase.config.authProfileId
       },
+      // The gql mutation to trigger the reset password email
       query: `
-        mutation($email: String!) {
-          userForgotPassword(email: $email) {
+        mutation($authProfileId: ID!, $email: String!) {
+          userPasswordForgot(data: {
+            email: $email,
+            authProfileId: $authProfileId
+          }) {
             success
           }
         }
@@ -19,6 +25,7 @@
         console.log(error)
       },
 
+      // If the call was successful, we navigate back to the logoutRedirect route
       handleSuccess (result) {
         if (result.errors && result.errors.length) {
           this.errors = result.errors
@@ -28,6 +35,7 @@
         window.location.replace(EightBase.config.routes.logoutRedirect)
       },
 
+      // The submit handler attached to our form button.
       handleSubmit (event) {
         if (event) event.preventDefault()
         if (event) event.stopPropagation()
